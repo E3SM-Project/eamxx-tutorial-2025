@@ -1,7 +1,17 @@
 ---
+
 theme: gaia
 _class: lead
 paginate: true
+header: "<!-- paginate: true -->"
+style: |
+  section::after {
+    content: attr(data-marpit-pagination);
+    font-size: 0.6em;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
 backgroundColor: #fff
 backgroundImage: url('./background.png')
 
@@ -57,13 +67,13 @@ Be sure to update the following variables in the script to take advantage of the
 **Runtime options, controlling output, DPxx, running unit tests**
 
 Part 2: Adding a new process to EAMxx
-AtmopshereProcess interface, adding a process, running it
+AtmosphereProcess interface, adding a process, running it
 
 ---
 
 ## Running EAMxx cases
 
-Identicaal to typical E3SM cases, but using compset `F2010-SCREAMv1`
+Identical to typical E3SM cases, but using compset `F2010-SCREAMv1`
 
 Edit the run script provided to suit your needs
 
