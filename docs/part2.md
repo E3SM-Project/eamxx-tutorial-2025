@@ -531,3 +531,118 @@ void POMPEI::finalize_impl() {
 
 }  // namespace scream
 ```
+
+---
+
+## Hooking everything up
+
+- We have the code, now we need to make sure the compiler sees it.
+- We will need to create a CMakeLists.txt file for pompei.
+
+- In the pompei folder create a new file: CMakeLists.txt
+
+---
+
+```cmake
+# List cpp sources to be compiled
+# In this case we have the pompei model code in pompei.cpp
+# and the interface code between pompei and eamxx.
+set(POMPEI_SRCS
+  eamxx_pompei_process_interface.cpp
+  pompei.cpp
+)
+
+# Create a library of the pompei code.
+set(POMPEI_LIBS "pompei")
+add_library(pompei ${POMPEI_SRCS})
+target_compile_definitions(pompei PUBLIC EAMXX_HAS_POMPEI)
+target_link_libraries(pompei physics_share scream_share)
+
+# Add this library to eamxx_physics
+target_link_libraries(eamxx_physics INTERFACE pompei)
+
+```
+
+---
+
+## Adding pompei to parent CMakeLists.txt
+
+Need to make CMake aware of our new file: Open ../CMakeLists.txt and add the following:
+
+```cmake
+add_subdirectory(pompei)
+```
+
+---
+
+## Register pompei with the physics factory
+
+To `components/src/physics/register_physics.hpp`, add:
+
+```cpp
+#ifndef EAMXX_HAS_POMPEI
+#include "eamxx/pompei/eamxx_pompei_process_interface.hpp"
+#endif
+
+// later in the file
+
+#ifndef EAMXX_HAS_POMPEI
+  proc_factory.register_product("pompei", &create_atmosphere_process<POMPEI>);
+```
+
+---
+
+## Link pompei via MCT coupling layer
+
+in `components/eamxx/src/mct_coupling/CMakeLists.txt` add:
+
+```cmake
+set (SCREAM_LIBS
+# later
+  pompei
+)
+```
+
+---
+
+## Add pompei to the namelist
+
+In `components/eamxx/cime_config/namelist_defaults_scream.xml`, add:
+
+```xml
+    <!-- Pompei -->
+    <pompei inherit="atm_proc_base">
+      <eruption_date type="string" doc="Start date/time in YYYY-MM-DD-SSSSS format for the eruption">${RUN_REFDATE}-${RUN_REFTOD}</eruption_date>
+      <plume_radius_in_km type="real" doc="Radius of eruption plume, in km" constraints="gt 0; le 100000">100</plume_radius_in_km>
+    </pompei>
+    <!-- later... -->
+    <initial_conditions>
+    <!-- ... -->
+    <!-- Ash initial condition to 0.0 -->
+    <ash               >0.0</ash>
+```
+
+---
+
+## Ready to launch
+
+- Just need to update our submission to run with pompei turned on.
+- Remember the atmchange commands we discussed in part 1.
+- Go back to the runscript we used and search for atmchange.  You’ll see a block of  commented out code which will turn pompei on.  Uncomment this and rerun the script.
+- Note, you may need to change the case name or delete the old case to get this going.
+
+---
+
+## The runtime parameters in the run script
+
+```bash
+# increase SCREAM_NUM_TRACERS from 10 to 11 (note that scream supports both 128 and 72 levels for low-res)
+./xmlchange SCREAM_CMAKE_OPTIONS="SCREAM_NP 4 SCREAM_NUM_VERTICAL_LEV 128 SCREAM_NUM_TRACERS 11"
+
+# add pompei to the list of aerosol processes
+./atmchange mac_aero_mic::atm_procs_list+=pompei
+# if you want to change the eruption date, you can do so with the following command
+./atmchange atmosphere_processes::physics::mac_aero_mic::pompei::eruption_date="0001-01-02-00000"
+# if you want to change the eruption radius, you can do so with the following command
+./atmchange atmosphere_processes::physics::mac_aero_mic::pompei::plume_radius_in_km=1000.0
+```
